@@ -11,11 +11,11 @@ black = (0, 0, 0)
 display_width = 800
 display_height = 600
 
-ship_size = 20
+ship_size = 40
 fd_fric = 0.5
 bd_fric = 0.1
-ship_max_speed = 20
-ship_max_rtspd = 10
+ship_max_speed = 10
+ship_max_rtspd = 2
 bullet_speed = 15
 
 # Создание экрана
@@ -31,13 +31,17 @@ snd_bangL = pygame.mixer.Sound("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/
 snd_bangM = pygame.mixer.Sound("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Sounds/bangMedium.wav")
 snd_bangS = pygame.mixer.Sound("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Sounds/bangSmall.wav")
 snd_extra = pygame.mixer.Sound("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Sounds/extra.wav")
+main_music = pygame.mixer.Sound("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Sounds/main_music.mp3")
 
 # Импорт картинок
 background = pygame.transform.scale(pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/background.png"), (display_width, display_height) )
 aster_image = pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/aster.png").convert_alpha()
 
-spaceship = pygame.transform.scale(pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/spaceship.png").convert_alpha(), (ship_size, ship_size))
-spaceship_stop = pygame.transform.scale(pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/spaceship_stop.png").convert_alpha(), (ship_size, ship_size))
+#rotate_num = 270
+rotate_num = -90
+
+spaceship = pygame.transform.rotate(pygame.transform.scale(pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/spaceship.png").convert_alpha(), (ship_size, ship_size)), rotate_num)
+spaceship_stop = pygame.transform.rotate(pygame.transform.scale(pygame.image.load("c:/Users/Asus/Desktop/Вуз/2 Курс/_Python/Asteroids/Asteroids/Images/spaceship_stop.png").convert_alpha(), (ship_size, ship_size)), rotate_num)
 
 def drawText(msg, color, x, y, s, center=True):
     screen_text = pygame.font.SysFont("Calibri", s).render(msg, True, color)
@@ -46,7 +50,8 @@ def drawText(msg, color, x, y, s, center=True):
         rect.center = (x, y)
     else:
         rect = (x, y)
-    gameDisplay.blit(screen_text, rect)
+    world.blit(screen_text, rect)
+    gameDisplay.blit(world, pygame.rect.Rect(0,0, display_width, display_height))
 
 
 def isColliding(x, y, xTo, yTo, size):
@@ -95,8 +100,8 @@ class Asteroid(pygame.sprite.Sprite):
 # Класс пули
 class Bullet:
     def __init__(self, x, y, direction):
-        self.x = x
-        self.y = y
+        self.x = x + ship_size/2
+        self.y = y + ship_size
         self.dir = direction
         self.life = 30
 
@@ -106,7 +111,8 @@ class Bullet:
         self.y += bullet_speed * math.sin(self.dir * math.pi / 180)
 
         # Отрисовка
-        pygame.draw.circle(gameDisplay, red, (int(self.x), int(self.y)), 3)
+        pygame.draw.circle(world, red, (int(self.x), int(self.y)), 3)
+        gameDisplay.blit(world, pygame.rect.Rect(0,0, display_width, display_height))
 
         # Столкновение со стенками
         if self.x > display_width:
@@ -143,17 +149,21 @@ class deadShip:
 
 
 # Корабль
-class Ship_(pygame.sprite.Sprite):
+class Ship(pygame.sprite.Sprite):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+        #self.x = x - ship_size/2
+        #self.y = y - ship_size/2
+
         self.hspeed = 0
         self.vspeed = 0
-        self.dir = 90
+        self.dir = -90
         self.rtspd = 0
         self.thrust = False
 
-        self.image = spaceship_stop
+        self.image = pygame.transform.rotate(spaceship_stop, 90)
         self.rect = self.image.get_rect(center=(ship_size/2, ship_size/2))
 
     def updateShip(self):
@@ -200,40 +210,19 @@ class Ship_(pygame.sprite.Sprite):
         self.dir += self.rtspd
 
     def drawShip(self):
-        a = math.radians(self.dir)
-        angle = self.rtspd
         x = self.x
         y = self.y
         t = self.thrust
-        originPos = (50, 50)
 
         # Отрисовка корабля
         if t:
             self.image = spaceship
         else:
-            pass
+            self.image = spaceship_stop
         
-        # calcaulate the axis aligned bounding box of the rotated image
-        w, h = self.image.get_size()
+        rotated_image = pygame.transform.rotate(self.image, -self.dir)
 
-        box        = [pygame.math.Vector2(p) for p in [(0, 0), (w, 0), (w, -h), (0, -h)]]
-        box_rotate = [p.rotate(angle) for p in box]
-        min_box    = (min(box_rotate, key=lambda p: p[0])[0], min(box_rotate, key=lambda p: p[1])[1])
-        max_box    = (max(box_rotate, key=lambda p: p[0])[0], max(box_rotate, key=lambda p: p[1])[1])
-
-        # calculate the translation of the pivot 
-        pivot  = pygame.math.Vector2(originPos[0], -originPos[1])
-        pivot_rotate = pivot.rotate(angle)
-        pivot_move   = pivot_rotate - pivot
-
-        # calculate the upper left origin of the rotated image
-        origin = (x - originPos[0] + min_box[0] - pivot_move[0], y - originPos[1] - max_box[1] + pivot_move[1])
-
-        # get a rotated image
-        rotated_image = pygame.transform.rotate(self.image, angle)
-
-        # rotate and blit the image
-        world.blit(rotated_image, origin)
+        world.blit(rotated_image, (x, y))
 
         gameDisplay.blit(world, pygame.rect.Rect(0,0, display_width, display_height))
 
@@ -243,106 +232,11 @@ class Ship_(pygame.sprite.Sprite):
         self.x = display_width / 2
         self.y = display_height / 2
         self.thrust = False
-        self.dir = 90
-        self.hspeed = 0
-        self.vspeed = 0
-
-# Корабль
-class Ship:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.hspeed = 0
-        self.vspeed = 0
-        self.dir = -90
-        self.rtspd = 0
-        self.thrust = False
-
-    def updateShip(self):
-        # Движение корабля
-        speed = math.sqrt(self.hspeed**2 + self.vspeed**2)
-        if self.thrust:
-            if speed + fd_fric < ship_max_speed:
-                self.hspeed += fd_fric * math.cos(self.dir * math.pi / 180)
-                self.vspeed += fd_fric * math.sin(self.dir * math.pi / 180)
-            else:
-                self.hspeed = ship_max_speed * math.cos(self.dir * math.pi / 180)
-                self.vspeed = ship_max_speed * math.sin(self.dir * math.pi / 180)
-        else:
-            if speed - bd_fric > 0:
-                change_in_hspeed = (bd_fric * math.cos(self.vspeed / self.hspeed))
-                change_in_vspeed = (bd_fric * math.sin(self.vspeed / self.hspeed))
-                if self.hspeed != 0:
-                    if change_in_hspeed / abs(change_in_hspeed) == self.hspeed / abs(self.hspeed):
-                        self.hspeed -= change_in_hspeed
-                    else:
-                        self.hspeed += change_in_hspeed
-                if self.vspeed != 0:
-                    if change_in_vspeed / abs(change_in_vspeed) == self.vspeed / abs(self.vspeed):
-                        self.vspeed -= change_in_vspeed
-                    else:
-                        self.vspeed += change_in_vspeed
-            else:
-                self.hspeed = 0
-                self.vspeed = 0
-        self.x += self.hspeed
-        self.y += self.vspeed
-
-        # Столкновение со стенками
-        if self.x > display_width:
-            self.x = 0
-        elif self.x < 0:
-            self.x = display_width
-        elif self.y > display_height:
-            self.y = 0
-        elif self.y < 0:
-            self.y = display_height
-
-        # Поворот
-        self.dir += self.rtspd
-
-    def drawShip(self):
-        a = math.radians(self.dir)
-        x = self.x
-        y = self.y
-        s = ship_size
-        t = self.thrust
-        # Отрисовка корабля
-        pygame.draw.line(gameDisplay, white,
-                         (x - (s * math.sqrt(130) / 12) * math.cos(math.atan(7 / 9) + a),
-                          y - (s * math.sqrt(130) / 12) * math.sin(math.atan(7 / 9) + a)),
-                         (x + s * math.cos(a), y + s * math.sin(a)))
-
-        pygame.draw.line(gameDisplay, white,
-                         (x - (s * math.sqrt(130) / 12) * math.cos(math.atan(7 / 9) - a),
-                          y + (s * math.sqrt(130) / 12) * math.sin(math.atan(7 / 9) - a)),
-                         (x + s * math.cos(a), y + s * math.sin(a)))
-
-        pygame.draw.line(gameDisplay, white,
-                         (x - (s * math.sqrt(2) / 2) * math.cos(a + math.pi / 4),
-                          y - (s * math.sqrt(2) / 2) * math.sin(a + math.pi / 4)),
-                         (x - (s * math.sqrt(2) / 2) * math.cos(-a + math.pi / 4),
-                          y + (s * math.sqrt(2) / 2) * math.sin(-a + math.pi / 4)))
-        if t:
-            pygame.draw.line(gameDisplay, white,
-                             (x - s * math.cos(a),
-                              y - s * math.sin(a)),
-                             (x - (s * math.sqrt(5) / 4) * math.cos(a + math.pi / 6),
-                              y - (s * math.sqrt(5) / 4) * math.sin(a + math.pi / 6)))
-            pygame.draw.line(gameDisplay, white,
-                             (x - s * math.cos(-a),
-                              y + s * math.sin(-a)),
-                             (x - (s * math.sqrt(5) / 4) * math.cos(-a + math.pi / 6),
-                              y + (s * math.sqrt(5) / 4) * math.sin(-a + math.pi / 6)))
-
-    def killShip(self):
-        # Возрождение
-        self.x = display_width / 2
-        self.y = display_height / 2
-        self.thrust = False
         self.dir = -90
         self.hspeed = 0
         self.vspeed = 0
+
+        self.image = spaceship_stop
 
 
 def gameLoop(startingState):
@@ -363,7 +257,9 @@ def gameLoop(startingState):
     oneUp_multiplier = 1
     playOneUpSFX = 0
     intensity = 0
-    ship = Ship(display_width / 2, display_height / 2)    
+    ship = Ship(display_width / 2, display_height / 2)
+
+    pygame.mixer.Sound.play(main_music)
 
     # Главный цикл
     while gameState != "Exit":
@@ -389,9 +285,9 @@ def gameLoop(startingState):
                 if event.key == pygame.K_UP:
                     ship.thrust = True
                 if event.key == pygame.K_LEFT:
-                    ship.rtspd = -ship_max_rtspd
+                    ship.rtspd = -(ship_max_rtspd**2)
                 if event.key == pygame.K_RIGHT:
-                    ship.rtspd = ship_max_rtspd
+                    ship.rtspd = (ship_max_rtspd**2)
                 if event.key == pygame.K_SPACE and ship_dying_delay == 0 and len(bullets) < bullet_capacity:
                     bullets.append(Bullet(ship.x, ship.y, ship.dir))
                     # Звуковые эффекты
@@ -531,14 +427,17 @@ def gameLoop(startingState):
                     continue
 
         # Доп жизнь
-        if score > oneUp_multiplier * 1000:
+        if score > oneUp_multiplier * 5000:
             oneUp_multiplier += 1
             live += 1
             playOneUpSFX = 60
         # Звуковые эффекты
         if playOneUpSFX > 0:
             playOneUpSFX -= 1
-            pygame.mixer.Sound.play(snd_extra, 60)
+            pygame.mixer.Sound.play(snd_extra)
+
+        # Отрисовка счета
+        drawText("Score = " + str(score), white, 550, 40, 40, False)
 
         # Отрисовка корабля
         if gameState != "Game Over":
@@ -560,12 +459,9 @@ def gameLoop(startingState):
             drawText("Press \"R\" to restart!", white, display_width / 2, display_height / 2 + 100, 50)
             live = -1
 
-        # Отрисовка счета
-        drawText(str(score), white, 60, 20, 40, False)
-
         # Отрисовка жизней
         for l in range(live + 1):
-            Ship(75 + l * 25, 75).drawShip()
+            Ship(75 + l * 25, 30).drawShip()
 
         # Обновление
         pygame.display.update()
